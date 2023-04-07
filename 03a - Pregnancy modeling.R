@@ -48,71 +48,49 @@ preg.num.age$Year <- as.factor(preg.num.age$Year)
 # 3. Percent pregnant ----
 #_____________________________________________________________________________________________________________
 
-# overall
-prop.test(nrow(preg.conf[preg.conf$Preg.lab == 1, ]),
-          nrow(preg.conf),
-          conf.level = 0.95)
-
-# yearlings only
-prop.test(nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Age.class == "Yearling", ]),
-          nrow(preg.conf[preg.conf$Age.class == "Yearling", ]),
-          conf.level = 0.95)
-
-# adults only
-prop.test(nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Age.class == "Adult", ]),
-          nrow(preg.conf[preg.conf$Age.class == "Adult", ]),
-          conf.level = 0.95)
-
-# test for differences between age classes
-age.successes <- c(nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Age.class == "Adult", ]),
-                   nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Age.class == "Yearling", ]))
-
-age.trials <- c(nrow(preg.conf[preg.conf$Age.class == "Adult", ]),
-                nrow(preg.conf[preg.conf$Age.class == "Yearling", ]))
-
-prop.test(age.successes,
-          age.trials)
-
-# test for differences between years
-year.successes <- c(nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Year == 2020, ]),
-                    nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Year == 2021, ]),
-                    nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Year == 2022, ]))
-
-year.trials <- c(nrow(preg.conf[preg.conf$Year == 2020, ]),
-                 nrow(preg.conf[preg.conf$Year == 2021, ]),
-                 nrow(preg.conf[preg.conf$Year == 2022, ]))
-
-prop.test(year.successes,
-          year.trials)
-
-# 2020
-prop.test(nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Year == 2020, ]),
-          nrow(preg.conf[preg.conf$Year == 2020, ]),
-          conf.level = 0.95)
-
-# 2021
-prop.test(nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Year == 2021, ]),
-          nrow(preg.conf[preg.conf$Year == 2021, ]),
-          conf.level = 0.95)
-
-# 2022
-prop.test(nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Year == 2022, ]),
-          nrow(preg.conf[preg.conf$Year == 2022, ]),
-          conf.level = 0.95)
-
-#_____________________________________________________________________________________________________________
-# 3. Percent pregnant ----
-#_____________________________________________________________________________________________________________
-
 # here we'll use bootstraps to generate confidence intervals
 
 # overall
-# observed proportion
-prop.overall <- do(1000) * prop(~Preg.lab == "1", data = resample(preg.conf))
+set.seed(678)
 
-prop.test(nrow(preg.conf[preg.conf$Preg.lab == 1, ]),
-          nrow(preg.conf),
-          conf.level = 0.95)
+prop.overall <- do(5000) * prop(~Preg.lab == "1", data = resample(preg.conf))
+
+quantile(prop.overall$prop_TRUE, probs = c(0.025, 0.975))
+
+# yearlings only
+set.seed(678)
+
+prop.yearling <- do(5000) * prop(~Preg.lab == "1", data = resample(preg.conf[preg.conf$Age.class == "Yearling", ]))
+
+quantile(prop.yearling$prop_TRUE, probs = c(0.025, 0.975))
+
+# adults only
+set.seed(678)
+
+prop.adult <- do(5000) * prop(~Preg.lab == "1", data = resample(preg.conf[preg.conf$Age.class == "Adult", ]))
+
+quantile(prop.adult$prop_TRUE, probs = c(0.025, 0.975))
+
+# 2020
+set.seed(678)
+
+prop.2020 <- do(5000) * prop(~Preg.lab == "1", data = resample(preg.conf[preg.conf$Year == "2020", ]))
+
+quantile(prop.2020$prop_TRUE, probs = c(0.025, 0.975))
+
+# 2021
+set.seed(678)
+
+prop.2021 <- do(5000) * prop(~Preg.lab == "1", data = resample(preg.conf[preg.conf$Year == "2021", ]))
+
+quantile(prop.2021$prop_TRUE, probs = c(0.025, 0.975))
+
+# 2022
+set.seed(678)
+
+prop.2022 <- do(5000) * prop(~Preg.lab == "1", data = resample(preg.conf[preg.conf$Year == "2022", ]))
+
+quantile(prop.2022$prop_TRUE, probs = c(0.025, 0.975))
 
 #_____________________________________________________________________________________________________________
 # 4. Categorical age models ----
