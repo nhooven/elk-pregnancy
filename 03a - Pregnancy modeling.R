@@ -5,7 +5,7 @@
 # Affiliation: School of the Environment, Washington State University
 # Date began: 10 Dec 2022
 # Date completed: 10 Dec 2022 
-# Date modified: 
+# Date modified: 07 Apr 2023
 # R version: 3.6.2
 
 #_____________________________________________________________________________________________________________
@@ -13,6 +13,7 @@
 #_____________________________________________________________________________________________________________
 
 library(tidyverse)
+library(mosaic)      # prop function
 library(pROC)        # ROC
 library(broom)       # extract parameter estimates
 
@@ -97,6 +98,20 @@ prop.test(nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Year == 2021, ]),
 # 2022
 prop.test(nrow(preg.conf[preg.conf$Preg.lab == 1 & preg.conf$Year == 2022, ]),
           nrow(preg.conf[preg.conf$Year == 2022, ]),
+          conf.level = 0.95)
+
+#_____________________________________________________________________________________________________________
+# 3. Percent pregnant ----
+#_____________________________________________________________________________________________________________
+
+# here we'll use bootstraps to generate confidence intervals
+
+# overall
+# observed proportion
+prop.overall <- do(1000) * prop(~Preg.lab == "1", data = resample(preg.conf))
+
+prop.test(nrow(preg.conf[preg.conf$Preg.lab == 1, ]),
+          nrow(preg.conf),
           conf.level = 0.95)
 
 #_____________________________________________________________________________________________________________
