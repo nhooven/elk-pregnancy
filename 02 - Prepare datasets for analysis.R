@@ -1,5 +1,5 @@
 # Title: Drivers of mid-winter pregnancy and fetal/neonatal survival
-# Subtitle: 2 - Prepare datasets for analysis
+# Subtitle: 02 - Prepare datasets for analysis
 # Author: Nathan D. Hooven
 # Email: nathan.hooven@wsu.edu
 # Affiliation: School of the Environment, Washington State University

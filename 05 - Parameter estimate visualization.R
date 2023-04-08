@@ -1,5 +1,5 @@
 # Title: Drivers of mid-winter pregnancy and fetal/neonatal survival
-# Subtitle: 5 - Parameter estimate visualization
+# Subtitle: 05 - Parameter estimate visualization
 # Author: Nathan D. Hooven
 # Email: nathan.hooven@wsu.edu
 # Affiliation: School of the Environment, Washington State University

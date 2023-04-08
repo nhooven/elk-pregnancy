@@ -1,11 +1,11 @@
 # Title: Drivers of mid-winter pregnancy and fetal/neonatal survival
-# Subtitle: 3b - Calf success modeling
+# Subtitle: 03b - Calf success modeling
 # Author: Nathan D. Hooven
 # Email: nathan.hooven@wsu.edu
 # Affiliation: School of the Environment, Washington State University
 # Date began: 10 Dec 2022
 # Date completed: 10 Dec 2022
-# Date modified: 
+# Date modified: 07 Apr 2023
 # R version: 3.6.2
 
 #_____________________________________________________________________________________________________________
@@ -101,6 +101,54 @@ prop.test(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Year == 2021, ]),
 prop.test(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Year == 2022, ]),
           nrow(fns.1[fns.1$Year == 2022, ]),
           conf.level = 0.95)
+
+#_____________________________________________________________________________________________________________
+# 3. Percent pregnant ----
+#_____________________________________________________________________________________________________________
+
+# here we'll use bootstraps to generate confidence intervals
+
+# overall
+set.seed(678)
+
+prop.overall <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1))
+
+quantile(prop.overall$prop_TRUE, probs = c(0.025, 0.975))
+
+# yearlings only
+set.seed(678)
+
+prop.yearling <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Age.class == "Yearling", ]))
+
+quantile(prop.yearling$prop_TRUE, probs = c(0.025, 0.975))
+
+# adults only
+set.seed(678)
+
+prop.adult <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Age.class == "Adult", ]))
+
+quantile(prop.adult$prop_TRUE, probs = c(0.025, 0.975))
+
+# 2020
+set.seed(678)
+
+prop.2020 <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Year == "2020", ]))
+
+quantile(prop.2020$prop_TRUE, probs = c(0.025, 0.975))
+
+# 2021
+set.seed(678)
+
+prop.2021 <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Year == "2021", ]))
+
+quantile(prop.2021$prop_TRUE, probs = c(0.025, 0.975))
+
+# 2022
+set.seed(678)
+
+prop.2022 <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Year == "2022", ]))
+
+quantile(prop.2022$prop_TRUE, probs = c(0.025, 0.975))
 
 #_____________________________________________________________________________________________________________
 # 3. Categorical age models ----

@@ -1,5 +1,5 @@
 # Title: Drivers of mid-winter pregnancy and fetal/neonatal survival
-# Subtitle: 3a - Pregnancy modeling
+# Subtitle: 03a - Pregnancy modeling
 # Author: Nathan D. Hooven
 # Email: nathan.hooven@wsu.edu
 # Affiliation: School of the Environment, Washington State University

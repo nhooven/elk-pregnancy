@@ -1,5 +1,5 @@
 # Title: Drivers of mid-winter pregnancy and fetal/neonatal survival
-# Subtitle: 4b - Calf success prediction plots
+# Subtitle: 04b - Calf success prediction plots
 # Author: Nathan D. Hooven
 # Email: nathan.hooven@wsu.edu
 # Affiliation: School of the Environment, Washington State University
