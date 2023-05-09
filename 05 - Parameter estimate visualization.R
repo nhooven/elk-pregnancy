@@ -5,8 +5,8 @@
 # Affiliation: School of the Environment, Washington State University
 # Date began: 10 Dec 2022
 # Date completed: 10 Dec 2022
-# Date modified: 
-# R version: 3.6.2
+# Date modified: 09 May 2023
+# R version: 3.6.2 / 4.2.2
 
 #_____________________________________________________________________________________________________________
 # 1. Load in required packages ----
@@ -57,27 +57,40 @@ ggplot(data = params,
            group = age.var,
            shape = age.var)) +
        theme_bw() +
-       facet_wrap(~vital.rate) + 
+       facet_wrap(~ vital.rate,
+                  nrow = 2) + 
        geom_vline(xintercept = 0) +
        geom_errorbarh(aes(xmin = low.95,
                           xmax = upp.95),
                       position = position_dodge(width = 1),
-                      height = 0) +
+                      height = 0,
+                      linewidth = 2.5,
+                      alpha = 0.5) +
        geom_errorbarh(aes(xmin = low.50,
                           xmax = upp.50),
                       position = position_dodge(width = 1),
                       height = 0,
-                      size = 1.5) +
+                      linewidth = 3.5) +
        geom_point(aes(size = age.var),
                   position = position_dodge(width = 1),
-                  color = "black") +
+                  color = "black",
+                  stroke = 1.25) +
        scale_shape_manual(values = c(23, 21)) +
        scale_size_manual(values = c(2.5, 3)) +
        theme(legend.position = "none",
-             panel.grid = element_blank()) +
+             panel.grid = element_blank(),
+             strip.background = element_blank(),
+             strip.text.x = element_blank(),
+             axis.text.y = element_text(size = 10)) +
        xlab("Standardized coefficient") +
        ylab("") +
        scale_x_continuous(breaks = c(-3, -2, -1, 0, 1, 2, 3)) +
-       scale_y_discrete(labels = c(expression(Age^2), "Age", "Mass", "Rump", "Intercept")) +
+       scale_y_discrete(labels = c(expression(Age^2), 
+                                   "Age", 
+                                   "Mass", 
+                                   "Rump", 
+                                   "Intercept")) +
        scale_color_brewer(palette = "Paired") +
        scale_fill_brewer(palette = "Paired")
+
+       
