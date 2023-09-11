@@ -5,7 +5,7 @@
 # Affiliation: School of the Environment, Washington State University
 # Date began: 10 Dec 2022
 # Date completed: 10 Dec 2022
-# Date modified: 09 May 2023
+# Date modified: 10 Sep 2023
 # R version: 3.6.2 / 4.2.2
 
 #_____________________________________________________________________________________________________________
@@ -25,10 +25,7 @@ params <- read.csv("parameter_est.csv")
 #_____________________________________________________________________________________________________________
 
 params <- params %>% dplyr::select(model, term, estimate, std.error) %>%
-                     mutate(age.var = ifelse(model %in% c("preg.cat.age", "success.cat.age"),
-                                                "Categorical",
-                                                "Numeric"),
-                            vital.rate = ifelse(model %in% c("preg.cat.age", "preg.num.age"),
+                     mutate(vital.rate = ifelse(model %in% c("preg.num.age"),
                                                 "Pregnancy",
                                                 "Calf success"),
                             low.95 = estimate - std.error*1.96,
@@ -40,10 +37,8 @@ params <- params %>% dplyr::select(model, term, estimate, std.error) %>%
                                                                "Final.mass.S",
                                                                "Age.lab.S",
                                                                "qAge.lab.S"))),
-                            age.var = factor(age.var, levels = rev(c("Categorical",
-                                                                     "Numeric"))),
                             vital.rate = factor(vital.rate, levels = c("Pregnancy",
-                                                                       "Calf success")))
+                                                                       "Fetal survival")))
 
 #_____________________________________________________________________________________________________________
 # 4. Visualize ----
@@ -53,9 +48,7 @@ ggplot(data = params,
        aes(x = estimate,
            y = term,
            color = term,
-           fill = term,
-           group = age.var,
-           shape = age.var)) +
+           fill = term)) +
        theme_bw() +
        facet_wrap(~ vital.rate,
                   nrow = 2) + 
@@ -71,8 +64,7 @@ ggplot(data = params,
                       position = position_dodge(width = 1),
                       height = 0,
                       linewidth = 3.5) +
-       geom_point(aes(size = age.var),
-                  position = position_dodge(width = 1),
+       geom_point(position = position_dodge(width = 1),
                   color = "black",
                   stroke = 1.25) +
        scale_shape_manual(values = c(23, 21)) +
@@ -84,7 +76,7 @@ ggplot(data = params,
              axis.text.y = element_text(size = 10)) +
        xlab("Standardized coefficient") +
        ylab("") +
-       scale_x_continuous(breaks = c(-3, -2, -1, 0, 1, 2, 3)) +
+       scale_x_continuous(breaks = c(-4, -3, -2, -1, 0, 1, 2, 3, 4)) +
        scale_y_discrete(labels = c(expression(Age^2), 
                                    "Age", 
                                    "Mass", 

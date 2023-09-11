@@ -5,7 +5,7 @@
 # Affiliation: School of the Environment, Washington State University
 # Date began: 10 Dec 2022
 # Date completed: 10 Dec 2022 
-# Date modified: 07 Apr 2023
+# Date modified: 10 Sep 2023
 # R version: 3.6.2
 
 #_____________________________________________________________________________________________________________
@@ -13,9 +13,9 @@
 #_____________________________________________________________________________________________________________
 
 library(tidyverse)
-library(mosaic)      # prop function
-library(pROC)        # ROC
-library(broom)       # extract parameter estimates
+library(mosaic)               # prop function
+library(pROC)                 # ROC
+library(broom)                # extract parameter estimates
 
 #_____________________________________________________________________________________________________________
 # 2. Read in data ----
@@ -109,59 +109,11 @@ kruskal.test(Final.mass.S ~ Age.class, data = preg.body)
 kruskal.test(BCS.rump.S ~ Year, data = preg.body)
 kruskal.test(Final.mass.S ~ Year, data = preg.body)
 
-#_____________________________________________________________________________________________________________
-# 4b. LASSO for feature selection ----
-#_____________________________________________________________________________________________________________
-
-# extract input matrix
-cat.age.matrix <- model.matrix(Preg.lab ~ 
-                                 Year + 
-                                 Age.class + 
-                                 BCS.rump.S + 
-                                 Final.mass.S,
-                               data = preg.body)
-
-# use cross-validation to chose best model
-cat.age.cv <- cv.glmnet(x = cat.age.matrix[ , -1],           # drop extra intercept term
-                        y = preg.body[ , c("Preg.lab")],     # response variable
-                        family = "binomial",                 # logistic regression
-                        alpha = 1,                           # LASSO regression
-                        standardize = FALSE)                 # predictors are already standardized
-
-plot(cat.age.cv)
-
-coef(cat.age.cv, s = cat.age.cv$lambda.min) %>% as.matrix()
-
-cat.age.model <- glmnet(x = cat.age.matrix[ , -1],
-                        y = preg.body[ , c("Preg.lab")],
-                        family = "binomial",
-                        lambda = cat.age.cv$lambda.min,
-                        alpha = 1,
-                        standardize = FALSE)
-
-coef(cat.age.model)
+# remove subadults from analysis
+preg.body.1 <- preg.body %>% filter(Age.class != "Yearling")
 
 #_____________________________________________________________________________________________________________
-# 4c. GLM for prediction ----
-#_____________________________________________________________________________________________________________
-
-cat.age.glm <- glm(Preg.lab ~ BCS.rump.S + 
-                              Final.mass.S,
-                   family = "binomial",
-                   data = preg.body)
-
-summary(cat.age.glm)
-
-plot(cat.age.glm)
-
-# ROC
-roc(preg.body$Preg.lab, predict(cat.age.glm))
-
-cat.age.tidy <- tidy(cat.age.glm) %>% 
-                mutate(model = "preg.cat.age")
-
-#_____________________________________________________________________________________________________________
-# 5. Categorical age models ----
+# 5. Numeric age models ----
 #_____________________________________________________________________________________________________________
 # 5a. Correlation ----
 #_____________________________________________________________________________________________________________
@@ -175,41 +127,11 @@ kruskal.test(Final.mass.S ~ Year, data = preg.num.age)
 kruskal.test(Age.lab.S ~ Year, data = preg.num.age)
 kruskal.test(qAge.lab.S ~ Year, data = preg.num.age)
 
-#_____________________________________________________________________________________________________________
-# 5b. LASSO for feature selection ----
-#_____________________________________________________________________________________________________________
-
-# extract input matrix
-num.age.matrix <- model.matrix(Preg.lab ~ 
-                                 Year + 
-                                 Age.lab.S +
-                                 qAge.lab.S +
-                                 BCS.rump.S + 
-                                 Final.mass.S,
-                               data = preg.num.age)
-
-# use cross-validation to chose best model
-num.age.cv <- cv.glmnet(x = num.age.matrix[ , -1],              # drop extra intercept term
-                        y = preg.num.age[ , c("Preg.lab")],     # response variable
-                        family = "binomial",                    # logistic regression
-                        alpha = 1,                              # LASSO regression
-                        standardize = FALSE)                    # predictors are already standardized
-
-plot(num.age.cv)
-
-coef(num.age.cv, s = num.age.cv$lambda.min) %>% as.matrix()
-
-num.age.model <- glmnet(x = num.age.matrix[ , -1],
-                        y = preg.num.age[ , c("Preg.lab")],
-                        family = "binomial",
-                        lambda = num.age.cv$lambda.min,
-                        alpha = 1,
-                        standardize = FALSE)
-
-coef(num.age.model)
+# remove subadults
+preg.num.age.1 <- preg.num.age %>% filter(Age.class != "Yearling")
 
 #_____________________________________________________________________________________________________________
-# 5c. GLM for prediction ----
+# 5b. GLM for prediction ----
 #_____________________________________________________________________________________________________________
 
 num.age.glm <- glm(Preg.lab ~ Age.lab.S +
@@ -217,14 +139,14 @@ num.age.glm <- glm(Preg.lab ~ Age.lab.S +
                               BCS.rump.S + 
                               Final.mass.S,
                    family = "binomial",
-                   data = preg.num.age)
+                   data = preg.num.age.1)
 
 summary(num.age.glm)
 
 plot(num.age.glm)
 
 # ROC
-roc(preg.num.age$Preg.lab, predict(num.age.glm))
+roc(preg.num.age.1$Preg.lab, predict(num.age.glm))
 
 num.age.tidy <- tidy(num.age.glm) %>% 
                 mutate(model = "preg.num.age")
@@ -233,8 +155,6 @@ num.age.tidy <- tidy(num.age.glm) %>%
 # 6. Copy parameter estimates and save image ----
 #_____________________________________________________________________________________________________________
 
-preg.tidy <- rbind(cat.age.tidy, num.age.tidy)
-
-write.table(preg.tidy, "clipboard", sep = "\t")
+write.table(num.age.tidy, "clipboard", sep = "\t")
 
 save.image("preg_full_model.RData")

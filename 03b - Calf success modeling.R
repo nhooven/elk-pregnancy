@@ -5,7 +5,7 @@
 # Affiliation: School of the Environment, Washington State University
 # Date began: 10 Dec 2022
 # Date completed: 10 Dec 2022
-# Date modified: 07 Apr 2023
+# Date modified: 10 Sep 2023
 # R version: 3.6.2
 
 #_____________________________________________________________________________________________________________
@@ -13,7 +13,6 @@
 #_____________________________________________________________________________________________________________
 
 library(tidyverse)
-library(glmnet)      # LASSO 
 library(pROC)        # ROC
 library(broom)
 
@@ -103,7 +102,7 @@ prop.test(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Year == 2022, ]),
           conf.level = 0.95)
 
 #_____________________________________________________________________________________________________________
-# 3. Percent pregnant ----
+# 3. Percent successful ----
 #_____________________________________________________________________________________________________________
 
 # here we'll use bootstraps to generate confidence intervals
@@ -151,85 +150,6 @@ prop.2022 <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Y
 quantile(prop.2022$prop_TRUE, probs = c(0.025, 0.975))
 
 #_____________________________________________________________________________________________________________
-# 3. Categorical age models ----
-#_____________________________________________________________________________________________________________
-
-# add weights for predicted status
-fns.body$weight <- ifelse(fns.body$Conf.pred == "Conf",
-                          1.00,
-                          ifelse(fns.body$Calf.success == 1 & fns.body$Conf.pred == "Pred",
-                                 0.919,
-                                 0.850))
-
-#_____________________________________________________________________________________________________________
-# 3a. Correlation ----
-#_____________________________________________________________________________________________________________
-
-cor(fns.body[ , c("BCS.rump.S", "Final.mass.S")])
-
-# age and year differences - Kruskal-Wallis tests
-# age
-kruskal.test(BCS.rump.S ~ Age.class, data = fns.body)
-kruskal.test(Final.mass.S ~ Age.class, data = fns.body)
-
-# year
-kruskal.test(BCS.rump.S ~ Year, data = fns.body)
-kruskal.test(Final.mass.S ~ Year, data = fns.body)
-
-#_____________________________________________________________________________________________________________
-# 3b. LASSO for feature selection ----
-#_____________________________________________________________________________________________________________
-
-# extract input matrix
-cat.age.matrix <- model.matrix(Calf.success ~ 
-                                 Year + 
-                                 Age.class + 
-                                 BCS.rump.S + 
-                                 Final.mass.S,
-                               data = fns.body)
-
-# use cross-validation to chose best model
-cat.age.cv <- cv.glmnet(x = cat.age.matrix[ , -1],           # drop extra intercept term
-                        y = fns.body[ , c("Calf.success")],  # response variable
-                        family = "binomial",                 # logistic regression
-                        alpha = 1,                           # LASSO regression
-                        weights = fns.body$weight,           # weights for inferred status
-                        standardize = FALSE)                 # predictors are already standardized
-
-plot(cat.age.cv)
-
-coef(cat.age.cv, s = cat.age.cv$lambda.min) %>% as.matrix()
-
-cat.age.model <- glmnet(x = cat.age.matrix[ , -1],
-                        y = fns.body[ , c("Calf.success")],
-                        family = "binomial",
-                        lambda = cat.age.cv$lambda.min,
-                        alpha = 1,
-                        weights = fns.body$weight,
-                        standardize = FALSE)
-
-coef(cat.age.model)
-
-#_____________________________________________________________________________________________________________
-# 4c. GLM for prediction ----
-#_____________________________________________________________________________________________________________
-
-cat.age.glm <- glm(Calf.success ~ Final.mass.S,
-                   family = "binomial",
-                   weights = weight,
-                   data = fns.body)
-
-summary(cat.age.glm)
-
-plot(cat.age.glm)
-
-# ROC
-roc(fns.body$Calf.success, predict(cat.age.glm))
-
-cat.age.tidy <- tidy(cat.age.glm) %>% 
-                mutate(model = "success.cat.age")
-
-#_____________________________________________________________________________________________________________
 # 4. Numeric age models ----
 #_____________________________________________________________________________________________________________
 
@@ -240,70 +160,42 @@ fns.num.age$weight <- ifelse(fns.num.age$Conf.pred == "Conf",
                                     0.919,
                                     0.850))
 
+# remove subadults
+fns.num.age.1 <- fns.num.age %>% filter(Age.class != "Yearling")
+
+# remove non-pregnant individuals
+fns.num.age.2 <- fns.num.age.1 %>% filter(Preg.lab == "Y")
+
 #_____________________________________________________________________________________________________________
 # 4a. Correlation ----
 #_____________________________________________________________________________________________________________
 
-cor(fns.num.age[ , c("BCS.rump.S", "Final.mass.S", "Age.lab.S", "qAge.lab.S")])
+cor(fns.num.age.1[ , c("BCS.rump.S", "Final.mass.S", "Age.lab.S", "qAge.lab.S")])
 
 # year differences - Kruskal-Wallis tests
-kruskal.test(BCS.rump.S ~ Year, data = fns.num.age)
-kruskal.test(Final.mass.S ~ Year, data = fns.num.age)
-kruskal.test(Age.lab.S ~ Year, data = fns.num.age)
-kruskal.test(qAge.lab.S ~ Year, data = fns.num.age)
+kruskal.test(BCS.rump.S ~ Year, data = fns.num.age.1)
+kruskal.test(Final.mass.S ~ Year, data = fns.num.age.1)
+kruskal.test(Age.lab.S ~ Year, data = fns.num.age.1)
+kruskal.test(qAge.lab.S ~ Year, data = fns.num.age.1)
 
 #_____________________________________________________________________________________________________________
-# 4b. LASSO for feature selection ----
-#_____________________________________________________________________________________________________________
-
-# extract input matrix
-num.age.matrix <- model.matrix(Calf.success ~ 
-                                 Year + 
-                                 Age.lab.S +
-                                 qAge.lab.S +
-                                 BCS.rump.S + 
-                                 Final.mass.S,
-                               data = fns.num.age)
-
-# use cross-validation to chose best model
-num.age.cv <- cv.glmnet(x = num.age.matrix[ , -1],              # drop extra intercept term
-                        y = fns.num.age[ , c("Calf.success")],  # response variable
-                        family = "binomial",                    # logistic regression
-                        alpha = 1,                              # LASSO regression
-                        weights = fns.num.age$weight,           # weights for inferred status
-                        standardize = FALSE)                    # predictors are already standardized
-
-plot(num.age.cv)
-
-coef(num.age.cv, s = num.age.cv$lambda.min) %>% as.matrix()
-
-num.age.model <- glmnet(x = num.age.matrix[ , -1],
-                        y = fns.num.age[ , c("Calf.success")],
-                        family = "binomial",
-                        lambda = num.age.cv$lambda.min,
-                        alpha = 1,
-                        weights = fns.num.age$weight,
-                        standardize = FALSE)
-
-coef(num.age.model)
-
-#_____________________________________________________________________________________________________________
-# 5c. GLM for prediction ----
+# 5b. GLM for prediction ----
 #_____________________________________________________________________________________________________________
 
 num.age.glm <- glm(Calf.success ~ Age.lab.S +
                               qAge.lab.S +
+                              BCS.rump.S +
                               Final.mass.S,
                    weights = weight,
                    family = "binomial",
-                   data = fns.num.age)
+                   data = fns.num.age.2)
 
 summary(num.age.glm)
 
 plot(num.age.glm)
 
 # ROC
-roc(fns.num.age$Calf.success, predict(num.age.glm))
+roc(fns.num.age.2$Calf.success, predict(num.age.glm))
 
 num.age.tidy <- tidy(num.age.glm) %>% 
                 mutate(model = "success.num.age")
@@ -312,8 +204,6 @@ num.age.tidy <- tidy(num.age.glm) %>%
 # 6. Copy parameter estimates and save image ----
 #_____________________________________________________________________________________________________________
 
-success.tidy <- rbind(cat.age.tidy, num.age.tidy)
-
-write.table(success.tidy, "clipboard", sep = "\t")
+write.table(num.age.tidy, "clipboard", sep = "\t")
 
 save.image("success_full_model.RData")

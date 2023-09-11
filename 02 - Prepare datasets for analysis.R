@@ -5,7 +5,7 @@
 # Affiliation: School of the Environment, Washington State University
 # Date began: 19 Apr 2022
 # Date completed: 28 Apr 2022
-# Date modified: 18 Jul 2022
+# Date modified: 10 Sep 2023
 # R version: 3.6.2
 
 #_____________________________________________________________________________________________________________
@@ -61,7 +61,7 @@ write.csv(preg.num.age, "preg_numeric.csv")
 # select columns we need for analysis
 fns.only <- all.preg %>% dplyr::select(E.number, Year, Site, Age.class, Age.lab ,
                                         BCS.ribs, BCS.withers, BCS.rump, RF, Final.mass,
-                                        Calf.success, Conf.pred)
+                                        Calf.success, Conf.pred, Preg.lab)
 
 # filter rows with Y/N success and change to binary
 fns.1 <- fns.only %>% filter(Calf.success %in% c("Y", "N")) %>%

@@ -5,7 +5,7 @@
 # Affiliation: School of the Environment, Washington State University
 # Date began: 11 Dec 2022
 # Date completed: 16 Jan 2023
-# Date modified: 
+# Date modified: 10 Sep 2023
 # R version: 3.6.2
 
 #_____________________________________________________________________________________________________________
@@ -17,40 +17,16 @@ library(tidyverse)
 load("success_full_model.RData")
 
 #_____________________________________________________________________________________________________________
-# 2. Categorical age model ----
-#_____________________________________________________________________________________________________________
-# 2a. Mass ----
-#_____________________________________________________________________________________________________________
-
-# newdata
-cat.mass.newdata <- data.frame(Final.mass.S = seq(min(fns.body$Final.mass.S), 
-                                                  max(fns.body$Final.mass.S),
-                                                  length.out = 100))
-
-# predict
-cat.mass.predict <- predict(cat.age.glm, 
-                            newdata = cat.mass.newdata,
-                            se.fit = TRUE,
-                            type = "response")
-
-# as a df 
-cat.mass.predict.df <- data.frame(x = (cat.mass.newdata$Final.mass.S * sd(fns.body$Final.mass)) + mean(fns.body$Final.mass),
-                                  fit = cat.mass.predict$fit,
-                                  low = cat.mass.predict$fit - cat.mass.predict$se.fit*1.96,
-                                  upp = cat.mass.predict$fit + cat.mass.predict$se.fit*1.96,
-                                  var = "Mass",
-                                  age.var = "Categorical")
-
-#_____________________________________________________________________________________________________________
 # 3. Numeric age model ----
 #_____________________________________________________________________________________________________________
 # 3a. Mass ----
 #_____________________________________________________________________________________________________________
 
 # newdata
-num.mass.newdata <- data.frame(Final.mass.S = seq(min(fns.num.age$Final.mass.S), 
-                                                  max(fns.num.age$Final.mass.S),
+num.mass.newdata <- data.frame(Final.mass.S = seq(min(fns.num.age.2$Final.mass.S), 
+                                                  max(fns.num.age.2$Final.mass.S),
                                                   length.out = 100),
+                               BCS.rump.S = 0,
                                Age.lab.S = 0,
                                qAge.lab.S = 0)
 
@@ -75,13 +51,13 @@ num.mass.predict.df <- data.frame(x = (num.mass.newdata$Final.mass.S * sd(fns.nu
 # newdata
 num.age.newdata <- tibble(BCS.rump.S = 0,
                           Final.mass.S = 0,
-                          Age.lab.S = seq(min(fns.num.age$Age.lab.S), 
-                                          max(fns.num.age$Age.lab.S),
+                          Age.lab.S = seq(min(fns.num.age.2$Age.lab.S), 
+                                          max(fns.num.age.2$Age.lab.S),
                                           length.out = 100)) %>% 
-                   mutate(qAge.lab.S = (((Age.lab.S*sd(fns.num.age$Age.lab) 
-                                          + mean(fns.num.age$Age.lab))^2) 
-                                          - mean(fns.num.age$qAge.lab)) 
-                                          / sd(fns.num.age$qAge.lab))
+                   mutate(qAge.lab.S = (((Age.lab.S*sd(fns.num.age.2$Age.lab) 
+                                          + mean(fns.num.age.2$Age.lab))^2) 
+                                          - mean(fns.num.age.2$qAge.lab)) 
+                                          / sd(fns.num.age.2$qAge.lab))
 
 # predict
 num.age.predict <- predict(num.age.glm, 
@@ -98,12 +74,38 @@ num.age.predict.df <- data.frame(x = (num.age.newdata$Age.lab.S* sd(fns.num.age$
                                  age.var = "Numeric")
 
 #_____________________________________________________________________________________________________________
+# 3d. Rump ----
+#_____________________________________________________________________________________________________________
+
+# newdata
+num.rump.newdata <- tibble(Final.mass.S = 0,
+                          BCS.rump.S = seq(min(fns.num.age.2$BCS.rump.S), 
+                                           max(fns.num.age.2$BCS.rump.S),
+                                           length.out = 100),
+                          Age.lab.S = 0,
+                          qAge.lab.S = 0)
+
+# predict
+num.rump.predict <- predict(num.age.glm, 
+                           newdata = num.rump.newdata,
+                           se.fit = TRUE,
+                           type = "response")
+
+# as a df 
+num.rump.predict.df <- data.frame(x = (num.rump.newdata$BCS.rump.S* sd(fns.num.age.2$BCS.rump)) + mean(fns.num.age.2$BCS.rump),
+                                 fit = num.rump.predict$fit,
+                                 low = num.rump.predict$fit - num.rump.predict$se.fit*1.96,
+                                 upp = num.rump.predict$fit + num.rump.predict$se.fit*1.96,
+                                 var = "Rump",
+                                 age.var = "Numeric")
+
+#_____________________________________________________________________________________________________________
 # 4. Bind dfs together ----
 #_____________________________________________________________________________________________________________
 
-all.predict.df <- rbind(cat.mass.predict.df,
-                        num.mass.predict.df,
-                        num.age.predict.df)
+all.predict.df <- rbind(num.mass.predict.df,
+                        num.age.predict.df,
+                        num.rump.predict.df)
 
 #_____________________________________________________________________________________________________________
 # 5. Facetted plot ----
@@ -111,26 +113,22 @@ all.predict.df <- rbind(cat.mass.predict.df,
 
 ggplot(data = all.predict.df,
        aes(x = x,
-           y = fit,
-           color = age.var,
-           fill = age.var)) +
+           y = fit)) +
   theme_bw() +
-  facet_grid(age.var ~ var,
+  facet_wrap(~ var,
+             ncol = 1,
              scales = "free_x") +
-  geom_line(size = 1.5,
-            linetype = "dashed") +
+  geom_line(size = 1.5) +
   geom_ribbon(aes(ymin = low,
                   ymax = upp),
               alpha = 0.25,
               color = NA) +
-  ylab("Probability of pregnancy") +
+  ylab("Probability of offpsring viability") +
   theme(panel.grid = element_blank(),
         strip.background = element_blank(),
         strip.text = element_blank(),
         axis.title.x = element_blank(),
         legend.position = "none") +
-  scale_color_manual(values = c("black", "#FF3300")) +
-  scale_fill_manual(values = c("black", "#FF3300")) +
   coord_cartesian(ylim = c(0, 1))
 
 # 375 x 360
