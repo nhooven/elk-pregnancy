@@ -5,7 +5,7 @@
 # Affiliation: School of the Environment, Washington State University
 # Date began: 10 Dec 2022
 # Date completed: 10 Dec 2022
-# Date modified: 10 Sep 2023
+# Date modified: 17 Sep 2023
 # R version: 3.6.2
 
 #_____________________________________________________________________________________________________________
@@ -13,8 +13,11 @@
 #_____________________________________________________________________________________________________________
 
 library(tidyverse)
-library(pROC)        # ROC
-library(broom)
+library(mosaic)               # prop function
+library(glmmTMB)              # mixed-effects models
+library(AICcmodavg)           # AICc model selection
+library(pROC)                 # ROC
+library(broom)                # extract parameter estimates
 
 #_____________________________________________________________________________________________________________
 # 2. Read in data ----
@@ -30,75 +33,95 @@ fns.body <- read.csv("fns_ageclass.csv")
 fns.num.age <- read.csv("fns_numeric.csv")
 
 # add quadratic  functional forms, and scale them
-fns.body <- fns.body %>% mutate(Final.mass.S = as.numeric(scale(Final.mass)),
-                                BCS.rump.S = as.numeric(scale(BCS.rump)))
-
 fns.num.age <- fns.num.age %>% mutate(qAge.lab = Age.lab^2,
                                         qFinal.mass = Final.mass^2,
-                                        qBCS.rump = BCS.rump^2) %>%
+                                        qBCS.rump = BCS.rump^2,
+                                      
+                                      # total body condition
+                                      total.cond = BCS.ribs +
+                                        BCS.withers +
+                                        BCS.rump) %>%
+  
                                  mutate(Age.lab.S = as.numeric(scale(Age.lab)),
                                         qAge.lab.S = as.numeric(scale(qAge.lab)),
                                         Final.mass.S = as.numeric(scale(Final.mass)),
-                                        BCS.rump.S = as.numeric(scale(BCS.rump)))
+                                        BCS.rump.S = as.numeric(scale(BCS.rump)),
+                                        total.cond.S = as.numeric(scale(total.cond)))
 
 # change year to "factor"
 fns.body$Year <- as.factor(fns.body$Year)
 fns.num.age$Year <- as.factor(fns.num.age$Year)
 
+# add weights for predicted status
+fns.num.age$weight <- ifelse(fns.num.age$Conf.pred == "Conf",
+                             1.00,
+                             ifelse(fns.num.age$Calf.success == 1 & fns.num.age$Conf.pred == "Pred",
+                                    0.919,
+                                    0.850))
+
+# remove subadults
+fns.num.age.1 <- fns.num.age %>% filter(Age.class != "Yearling")
+
+# remove non-pregnant individuals
+fns.num.age.2 <- fns.num.age.1 %>% filter(Preg.lab == "Y")
+
 #_____________________________________________________________________________________________________________
-# 3. Percent pregnant ----
+# 3. Percent successful ----
 #_____________________________________________________________________________________________________________
 
+# remove non-pregnant individuals
+fns.2 <- fns.1 %>% filter(Preg.lab == "Y")
+
 # overall
-prop.test(nrow(fns.1[fns.1$Calf.success == 1, ]),
-          nrow(fns.1),
+prop.test(nrow(fns.2[fns.2$Calf.success == 1, ]),
+          nrow(fns.2),
           conf.level = 0.95)
 
 # yearlings only
-prop.test(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Age.class == "Yearling", ]),
-          nrow(fns.1[fns.1$Age.class == "Yearling", ]),
+prop.test(nrow(fns.2[fns.2$Calf.success == 1 & fns.2$Age.class == "Yearling", ]),
+          nrow(fns.2[fns.2$Age.class == "Yearling", ]),
           conf.level = 0.95)
 
 # adults only
-prop.test(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Age.class == "Adult", ]),
-          nrow(fns.1[fns.1$Age.class == "Adult", ]),
+prop.test(nrow(fns.2[fns.2$Calf.success == 1 & fns.2$Age.class == "Adult", ]),
+          nrow(fns.2[fns.2$Age.class == "Adult", ]),
           conf.level = 0.95)
 
 # test for differences between age classes
-age.successes <- c(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Age.class == "Adult", ]),
-                   nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Age.class == "Yearling", ]))
+age.successes <- c(nrow(fns.2[fns.2$Calf.success == 1 & fns.2$Age.class == "Adult", ]),
+                   nrow(fns.2[fns.2$Calf.success == 1 & fns.2$Age.class == "Yearling", ]))
 
-age.trials <- c(nrow(fns.1[fns.1$Age.class == "Adult", ]),
-                nrow(fns.1[fns.1$Age.class == "Yearling", ]))
+age.trials <- c(nrow(fns.2[fns.2$Age.class == "Adult", ]),
+                nrow(fns.2[fns.2$Age.class == "Yearling", ]))
 
 prop.test(age.successes,
           age.trials)
 
 # test for differences between years
-year.successes <- c(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Year == 2020, ]),
-                    nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Year == 2021, ]),
-                    nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Year == 2022, ]))
+year.successes <- c(nrow(fns.2[fns.2$Calf.success == 1 & fns.2$Year == 2020, ]),
+                    nrow(fns.2[fns.2$Calf.success == 1 & fns.2$Year == 2021, ]),
+                    nrow(fns.2[fns.2$Calf.success == 1 & fns.2$Year == 2022, ]))
 
-year.trials <- c(nrow(fns.1[fns.1$Year == 2020, ]),
-                 nrow(fns.1[fns.1$Year == 2021, ]),
-                 nrow(fns.1[fns.1$Year == 2022, ]))
+year.trials <- c(nrow(fns.2[fns.2$Year == 2020, ]),
+                 nrow(fns.2[fns.2$Year == 2021, ]),
+                 nrow(fns.2[fns.2$Year == 2022, ]))
 
 prop.test(year.successes,
           year.trials)
 
 # 2020
-prop.test(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Year == 2020, ]),
-          nrow(fns.1[fns.1$Year == 2020, ]),
+prop.test(nrow(fns.2[fns.2$Calf.success == 1 & fns.2$Year == 2020, ]),
+          nrow(fns.2[fns.2$Year == 2020, ]),
           conf.level = 0.95)
 
 # 2021
-prop.test(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Year == 2021, ]),
-          nrow(fns.1[fns.1$Year == 2021, ]),
+prop.test(nrow(fns.2[fns.2$Calf.success == 1 & fns.2$Year == 2021, ]),
+          nrow(fns.2[fns.2$Year == 2021, ]),
           conf.level = 0.95)
 
 # 2022
-prop.test(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Year == 2022, ]),
-          nrow(fns.1[fns.1$Year == 2022, ]),
+prop.test(nrow(fns.2[fns.2$Calf.success == 1 & fns.2$Year == 2022, ]),
+          nrow(fns.2[fns.2$Year == 2022, ]),
           conf.level = 0.95)
 
 #_____________________________________________________________________________________________________________
@@ -110,42 +133,42 @@ prop.test(nrow(fns.1[fns.1$Calf.success == 1 & fns.1$Year == 2022, ]),
 # overall
 set.seed(678)
 
-prop.overall <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1))
+prop.overall <- do(5000) * prop(~Calf.success == "1", data = resample(fns.2))
 
 quantile(prop.overall$prop_TRUE, probs = c(0.025, 0.975))
 
 # yearlings only
 set.seed(678)
 
-prop.yearling <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Age.class == "Yearling", ]))
+prop.yearling <- do(5000) * prop(~Calf.success == "1", data = resample(fns.2[fns.2$Age.class == "Yearling", ]))
 
 quantile(prop.yearling$prop_TRUE, probs = c(0.025, 0.975))
 
 # adults only
 set.seed(678)
 
-prop.adult <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Age.class == "Adult", ]))
+prop.adult <- do(5000) * prop(~Calf.success == "1", data = resample(fns.2[fns.2$Age.class == "Adult", ]))
 
 quantile(prop.adult$prop_TRUE, probs = c(0.025, 0.975))
 
 # 2020
 set.seed(678)
 
-prop.2020 <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Year == "2020", ]))
+prop.2020 <- do(5000) * prop(~Calf.success == "1", data = resample(fns.2[fns.2$Year == "2020", ]))
 
 quantile(prop.2020$prop_TRUE, probs = c(0.025, 0.975))
 
 # 2021
 set.seed(678)
 
-prop.2021 <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Year == "2021", ]))
+prop.2021 <- do(5000) * prop(~Calf.success == "1", data = resample(fns.2[fns.2$Year == "2021", ]))
 
 quantile(prop.2021$prop_TRUE, probs = c(0.025, 0.975))
 
 # 2022
 set.seed(678)
 
-prop.2022 <- do(5000) * prop(~Calf.success == "1", data = resample(fns.1[fns.1$Year == "2022", ]))
+prop.2022 <- do(5000) * prop(~Calf.success == "1", data = resample(fns.2[fns.2$Year == "2022", ]))
 
 quantile(prop.2022$prop_TRUE, probs = c(0.025, 0.975))
 
@@ -170,40 +193,119 @@ fns.num.age.2 <- fns.num.age.1 %>% filter(Preg.lab == "Y")
 # 4a. Correlation ----
 #_____________________________________________________________________________________________________________
 
-cor(fns.num.age.1[ , c("BCS.rump.S", "Final.mass.S", "Age.lab.S", "qAge.lab.S")])
+cor(fns.num.age.2[ , c("BCS.rump.S", "Final.mass.S", "Age.lab.S", "qAge.lab.S", "total.cond.S")])
 
 # year differences - Kruskal-Wallis tests
-kruskal.test(BCS.rump.S ~ Year, data = fns.num.age.1)
-kruskal.test(Final.mass.S ~ Year, data = fns.num.age.1)
-kruskal.test(Age.lab.S ~ Year, data = fns.num.age.1)
-kruskal.test(qAge.lab.S ~ Year, data = fns.num.age.1)
+kruskal.test(BCS.rump.S ~ Year, data = fns.num.age.2)
+kruskal.test(Final.mass.S ~ Year, data = fns.num.age.2)
+kruskal.test(Age.lab.S ~ Year, data = fns.num.age.2)
+kruskal.test(qAge.lab.S ~ Year, data = fns.num.age.2)
 
 #_____________________________________________________________________________________________________________
-# 5b. GLM for prediction ----
+# 5b. Model selection (mixed-effects models) ----
 #_____________________________________________________________________________________________________________
 
-num.age.glm <- glm(Calf.success ~ Age.lab.S +
-                              qAge.lab.S +
-                              BCS.rump.S +
-                              Final.mass.S,
-                   weights = weight,
-                   family = "binomial",
-                   data = fns.num.age.2)
+# here we will fit several candidate models with different fixed effect structures, and the same
+# random effect structure (Site nested within Year)
 
-summary(num.age.glm)
+# model list
+success.model.list <- list()
 
-plot(num.age.glm)
+# model 1 - intercept-only, nested RE
+success.model.list[[1]] <- glmmTMB(Calf.success ~ 
+                                     1 +
+                                  (1 | Year/Site),
+                                data = fns.num.age.2,
+                                family = "binomial",
+                                weights = weight)
 
-# ROC
-roc(fns.num.age.2$Calf.success, predict(num.age.glm))
+# model 2 - Age, nested RE
+success.model.list[[2]] <- glmmTMB(Calf.success ~ 
+                                     Age.lab.S +
+                                  qAge.lab.S +
+                                  (1 | Year/Site),
+                                data = fns.num.age.2,
+                                family = "binomial",
+                                weights = weight)
 
-num.age.tidy <- tidy(num.age.glm) %>% 
-                mutate(model = "success.num.age")
+# model 3 - Condition, nested RE
+success.model.list[[3]] <- glmmTMB(Calf.success ~ 
+                                     total.cond.S +
+                                  (1 | Year/Site),
+                                data = fns.num.age.2,
+                                family = "binomial",
+                                weights = weight)
+
+# model 4 - Mass, nested RE
+success.model.list[[4]] <- glmmTMB(Calf.success ~ 
+                                     Final.mass.S +
+                                  (1 | Year/Site),
+                                data = fns.num.age.2,
+                                family = "binomial",
+                                weights = weight)
+
+# model 5 - Age + Condition, nested RE
+success.model.list[[5]] <- glmmTMB(Calf.success ~ 
+                                     Age.lab.S +
+                                  qAge.lab.S +
+                                    total.cond.S +
+                                  (1 | Year/Site),
+                                data = fns.num.age.2,
+                                family = "binomial",
+                                weights = weight)
+
+# model 6 - Age + Mass, nested RE
+success.model.list[[6]] <- glmmTMB(Calf.success ~ 
+                                     Age.lab.S +
+                                         qAge.lab.S +
+                                         Final.mass.S +
+                                  (1 | Year/Site),
+                                data = fns.num.age.2,
+                                family = "binomial")
+
+# model 7 - Condition + Mass, nested RE
+success.model.list[[7]] <- glmmTMB(Calf.success ~ 
+                                     total.cond.S +
+                                  Final.mass.S +
+                                  (1 | Year/Site),
+                                data = fns.num.age.2,
+                                family = "binomial",
+                                weights = weight)
+
+# model 8 - Age + Condition + Mass, nested RE
+success.model.list[[8]] <- glmmTMB(Calf.success ~ 
+                                     Age.lab.S +
+                                  qAge.lab.S +
+                                  total.cond.S +
+                                  Final.mass.S +
+                                  (1 | Year/Site),
+                                data = fns.num.age.2,
+                                family = "binomial",
+                                weights = weight)
+
+# model selection
+aictab(success.model.list)
+
+summary(success.model.list[[1]])
+
+#_____________________________________________________________________________________________________________
+# 5c. GLM for prediction ----
+#_____________________________________________________________________________________________________________
+
+success.model.1 <- glmmTMB(Calf.success ~ 
+                             1 +
+                                (1 | Year/Site),
+                              data = fns.num.age.2,
+                              family = "binomial",
+                              weights = weight)
+
+summary(success.model.1)
+
+# inverse logit
+exp(success.model.1$fit$par[1]) / (1 + exp(success.model.1$fit$par[1]))
 
 #_____________________________________________________________________________________________________________
 # 6. Copy parameter estimates and save image ----
 #_____________________________________________________________________________________________________________
-
-write.table(num.age.tidy, "clipboard", sep = "\t")
 
 save.image("success_full_model.RData")
