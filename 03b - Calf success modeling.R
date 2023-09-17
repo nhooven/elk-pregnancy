@@ -17,7 +17,6 @@ library(mosaic)               # prop function
 library(glmmTMB)              # mixed-effects models
 library(AICcmodavg)           # AICc model selection
 library(pROC)                 # ROC
-library(broom)                # extract parameter estimates
 
 #_____________________________________________________________________________________________________________
 # 2. Read in data ----
