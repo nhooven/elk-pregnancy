@@ -5,7 +5,7 @@
 # Affiliation: School of the Environment, Washington State University
 # Date began: 10 Dec 2022
 # Date completed: 10 Dec 2022 
-# Date modified: 17 Sep 2023
+# Date modified: 19 Jan 2024
 # R version: 3.6.2
 
 #_____________________________________________________________________________________________________________
@@ -53,6 +53,9 @@ preg.num.age$Year <- as.factor(preg.num.age$Year)
 # 3. Percent pregnant ----
 #_____________________________________________________________________________________________________________
 
+# let's remove subadults AS PER REVISION 3
+preg.conf <- preg.conf %>% filter(Age.class == "Adult")
+
 # here we'll use bootstraps to generate confidence intervals
 
 # overall
@@ -61,20 +64,6 @@ set.seed(678)
 prop.overall <- do(5000) * prop(~Preg.lab == "1", data = resample(preg.conf))
 
 quantile(prop.overall$prop_TRUE, probs = c(0.025, 0.975))
-
-# yearlings only
-set.seed(678)
-
-prop.yearling <- do(5000) * prop(~Preg.lab == "1", data = resample(preg.conf[preg.conf$Age.class == "Yearling", ]))
-
-quantile(prop.yearling$prop_TRUE, probs = c(0.025, 0.975))
-
-# adults only
-set.seed(678)
-
-prop.adult <- do(5000) * prop(~Preg.lab == "1", data = resample(preg.conf[preg.conf$Age.class == "Adult", ]))
-
-quantile(prop.adult$prop_TRUE, probs = c(0.025, 0.975))
 
 # 2020
 set.seed(678)
